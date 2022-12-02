@@ -11,6 +11,9 @@ import numpy as np
 import torch
 import math
 
+import omni                                                     # Provides the core omniverse apis
+import asyncio                                                  # Used to run sample asynchronously to not block rendering thread
+
 class RoblearnTask(RLTask):
     def __init__(
         self,
@@ -43,6 +46,33 @@ class RoblearnTask(RLTask):
         
         self._goal_position = [10.0, 0.0, 3.1]
         self._max_velocity = 10.0
+
+        from omni.isaac.range_sensor import _range_sensor               # Imports the python bindings to interact with lidar sensor
+
+        stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
+        #timeline = omni.timeline.get_timeline_interface()               # Used to interact with simulation
+        self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
+        
+        # These commands are the Python-equivalent of the first half of this tutorial
+        #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
+        #self.lidarPath = "/LidarName"
+        #result, prim = omni.kit.commands.execute(
+        #            "RangeSensorCreateLidar",
+        #            path=self.lidarPath,
+        #            parent="/World",
+        #            min_range=0.2,
+        #            max_range=2.0,
+        #            draw_points=False,
+        #            draw_lines=True,
+        #            horizontal_fov=360.0,
+        #            vertical_fov=30.0,
+        #            horizontal_resolution=0.4,
+        #            vertical_resolution=4.0,
+        #            rotation_rate=0.0,
+        #            high_lod=False,
+        #            yaw_offset=0.0,
+        #            enable_semantics=False
+        #        )
         
 
         RLTask.__init__(self, name, env)
@@ -53,11 +83,16 @@ class RoblearnTask(RLTask):
     def get_jetbot(self):
         assets_root_path = get_assets_root_path()
         jetbot_asset_path = assets_root_path + "/Isaac/Robots/Jetbot/jetbot.usd"
-        jetbot1 = Jetbot(prim_path=self.default_zero_env_path + "/Jetbot_1" , name="Jetbot",usd_path=jetbot_asset_path, translation=self._jetbot_positions)
-        jetbot2 = Jetbot(prim_path=self.default_zero_env_path + "/Jetbot_2" , name="Jetbot",usd_path=jetbot_asset_path, translation=(self._jetbot_positions + self._jetbot_positions_offset))
-        # applies articulation settings from the task configuration yaml file
-        self._sim_config.apply_articulation_settings("Jetbot", get_prim_at_path(jetbot1.prim_path), self._sim_config.parse_actor_config("Jetbot"))
-        self._sim_config.apply_articulation_settings("Jetbot", get_prim_at_path(jetbot2.prim_path), self._sim_config.parse_actor_config("Jetbot"))
+
+        for i in range(self._num_agents):
+
+            jetbot = Jetbot(
+                prim_path=self.default_zero_env_path + "/Jetbot_" + str(i),
+                name="Jetbot",
+                usd_path=jetbot_asset_path,
+                translation=self._jetbot_positions + i * self._jetbot_positions_offset
+                )
+            self._sim_config.apply_articulation_settings("Jetbot", get_prim_at_path(jetbot.prim_path), self._sim_config.parse_actor_config("Jetbot"))
 
     def set_up_scene(self, scene) -> None:
 
@@ -203,3 +238,4 @@ class RoblearnTask(RLTask):
         # bookkeeping
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0
+
