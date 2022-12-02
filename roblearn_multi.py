@@ -45,35 +45,7 @@ class RoblearnTask(RLTask):
 
         
         self._goal_position = [10.0, 0.0, 3.1]
-        self._max_velocity = 10.0
-
-        from omni.isaac.range_sensor import _range_sensor               # Imports the python bindings to interact with lidar sensor
-
-        stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
-        #timeline = omni.timeline.get_timeline_interface()               # Used to interact with simulation
-        self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
-        
-        # These commands are the Python-equivalent of the first half of this tutorial
-        #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
-        #self.lidarPath = "/LidarName"
-        #result, prim = omni.kit.commands.execute(
-        #            "RangeSensorCreateLidar",
-        #            path=self.lidarPath,
-        #            parent="/World",
-        #            min_range=0.2,
-        #            max_range=2.0,
-        #            draw_points=False,
-        #            draw_lines=True,
-        #            horizontal_fov=360.0,
-        #            vertical_fov=30.0,
-        #            horizontal_resolution=0.4,
-        #            vertical_resolution=4.0,
-        #            rotation_rate=0.0,
-        #            high_lod=False,
-        #            yaw_offset=0.0,
-        #            enable_semantics=False
-        #        )
-        
+        self._max_velocity = 10.0      
 
         RLTask.__init__(self, name, env)
         self.obs_buf = torch.zeros((self._num_envs * self._num_agents , self.num_observations), device=self._cfg["sim_device"], dtype=torch.float)
@@ -94,13 +66,50 @@ class RoblearnTask(RLTask):
                 )
             self._sim_config.apply_articulation_settings("Jetbot", get_prim_at_path(jetbot.prim_path), self._sim_config.parse_actor_config("Jetbot"))
 
+    def create_lidars(self):
+        from omni.isaac.range_sensor import _range_sensor               # Imports the python bindings to interact with lidar sensor
+
+        stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
+        self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
+        base_prim_path = "/World/envs"
+
+        
+        for i in range(self.num_envs):
+
+            env_path = "/env_" + str(i)
+
+            for j in range(self.num_agents):
+
+                jetbot_path = "/Jetbot_" + str(j)
+                parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
+                #lidar_path = jetbot_path + "_lidar"
+                lidar_path = "/LidarName"
+                result, prim = omni.kit.commands.execute(
+                            "RangeSensorCreateLidar",
+                            path=lidar_path,
+                            parent=parent_prim,
+                            min_range=0.2,
+                            max_range=2.0,
+                            draw_points=False,
+                            draw_lines=True,
+                            horizontal_fov=270.0,
+                            vertical_fov=30.0,
+                            horizontal_resolution=0.4,
+                            vertical_resolution=4.0,
+                            rotation_rate=0.0,
+                            high_lod=False,
+                            yaw_offset=0.0,
+                            enable_semantics=False
+                        )
+
     def set_up_scene(self, scene) -> None:
 
         self.get_jetbot()
+        self.create_lidars()
         super().set_up_scene(scene)
         self._jetbots = ArticulationView(prim_paths_expr="/World/envs/.*/Jetbot_*", name="jetbot_view")
         scene.add(self._jetbots)
-        print("AticulationviewPoses:",self._jetbots.get_world_poses())
+        #print("AticulationviewPoses:",self._jetbots.get_world_poses())
         #exit()
 
         return
@@ -238,4 +247,3 @@ class RoblearnTask(RLTask):
         # bookkeeping
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0
-
