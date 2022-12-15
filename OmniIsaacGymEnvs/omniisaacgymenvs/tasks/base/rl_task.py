@@ -61,6 +61,9 @@ class RLTask(BaseTask):
         self._device = self._cfg["sim_device"]
         print("Task Device:", self._device)
 
+        #self._num_envs = self._cfg["task"]["env"]["numEnvs"]
+        #self._num_agents = self._cfg["task"]["env"]["numAgents"]
+
         self.clip_obs = self._cfg["task"]["env"].get("clipObservations", np.Inf)
         self.clip_actions = self._cfg["task"]["env"].get("clipActions", np.Inf)
         self.rl_device = self._cfg.get("rl_device", "cuda:0")
@@ -94,11 +97,11 @@ class RLTask(BaseTask):
         """ Prepares torch buffers for RL data collection."""
 
         # prepare tensors
-        self.obs_buf = torch.zeros((self._num_envs * 2, self.num_observations), device=self._device, dtype=torch.float)
-        self.states_buf = torch.zeros((self._num_envs * 2, self.num_states), device=self._device, dtype=torch.float)
-        self.rew_buf = torch.zeros(self._num_envs * 2, device=self._device, dtype=torch.float)
-        self.reset_buf = torch.ones(self._num_envs * 2, device=self._device, dtype=torch.long)
-        self.progress_buf = torch.zeros(self._num_envs * 2, device=self._device, dtype=torch.long)
+        self.obs_buf = torch.zeros((self._num_envs * self._num_agents, self.num_observations), device=self._device, dtype=torch.float)
+        self.states_buf = torch.zeros((self._num_envs * self._num_agents, self.num_states), device=self._device, dtype=torch.float)
+        self.rew_buf = torch.zeros(self._num_envs * self._num_agents, device=self._device, dtype=torch.float)
+        self.reset_buf = torch.ones(self._num_envs * self._num_agents, device=self._device, dtype=torch.long)
+        self.progress_buf = torch.zeros(self._num_envs * self._num_agents, device=self._device, dtype=torch.long)
         self.extras = {}
 
     def set_up_scene(self, scene) -> None:

@@ -31,8 +31,8 @@ class RoblearnTask(RLTask):
 
         self._num_envs = self._task_cfg["env"]["numEnvs"]
         self._env_spacing = self._task_cfg["env"]["envSpacing"]
-        self._num_agents = 2 #self._task_cfg["env"]["numAgents"]
-        self._jetbot_positions = torch.tensor([0.0, 0.0, 0.0])
+        self._num_agents = self._task_cfg["env"]["numAgents"]
+        self._jetbot_positions = torch.tensor([0.0, 0.0, 0.1])
         self._jetbot_positions_offset = torch.tensor([0.0, 1.0, 0.0])
 
         
@@ -41,7 +41,7 @@ class RoblearnTask(RLTask):
         self._max_episode_length = 500
 
         self._num_observations = 16
-        self._num_actions = 4
+        self._num_actions = 2 * self._num_agents
 
         
         self._goal_position = [10.0, 0.0, 3.1]
@@ -79,13 +79,14 @@ class RoblearnTask(RLTask):
         stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
         self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
         base_prim_path = "/World/envs"
-
+        #omni.kit.commands.execute('DeletePhysicsSceneCommand',stage = stage, path='/PhysicsScene')
+        #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
         
-        for i in range(self.num_envs):
+        for i in range(self._num_envs):
 
             env_path = "/env_" + str(i)
 
-            for j in range(self.num_agents):
+            for j in range(self._num_agents):
 
                 jetbot_path = "/Jetbot_" + str(j)
                 parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
@@ -111,6 +112,9 @@ class RoblearnTask(RLTask):
 
     def set_up_scene(self, scene) -> None:
 
+        stage = omni.usd.get_context().get_stage()
+        #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
+
         self.get_jetbot()
         self.create_lidars()
         super().set_up_scene(scene)
@@ -127,7 +131,7 @@ class RoblearnTask(RLTask):
             self.reset_idx(reset_env_ids)
 
         self._previous_jetbot_position, jetbot_world_orientation = self._jetbots.get_world_poses()
-        new_actions = torch.reshape(actions,(self._jetbots.count,self._jetbots.num_dof))
+        new_actions = torch.reshape(actions,(self._jetbots.count, self._jetbots.num_dof))
         #actions = actions.to(self._device)
         new_actions = new_actions.to(self._device)
 
