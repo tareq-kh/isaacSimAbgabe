@@ -33,14 +33,25 @@ class RoblearnTask(RLTask):
         self._env_spacing = self._task_cfg["env"]["envSpacing"]
         self._num_agents = self._task_cfg["env"]["numAgents"]
         self._jetbot_positions = torch.tensor([0.0, 0.0, 0.1])
-        self._jetbot_positions_offset = torch.tensor([0.0, 1.0, 0.0])
 
+        # Get the offset translation
+        self._agents_offset_x = self._task_cfg["env"]["agentsOffsetX"]
+        self._agents_offset_y = self._task_cfg["env"]["agentsOffsetY"]
+        self._agents_offset_z = self._task_cfg["env"]["agentsOffsetZ"]
+        self._jetbot_positions_offset = torch.tensor([
+            self._agents_offset_x, 
+            self._agents_offset_y, 
+            self._agents_offset_z
+            ])
         
         self._reset_dist = self._task_cfg["env"]["resetDist"]
         #self._max_push_effort = self._task_cfg["env"]["maxEffort"]
         self._max_episode_length = 500
 
+        # Set number of observations per robot
         self._num_observations = 16
+
+        # Set number of actions per environment
         self._num_actions = 2 * self._num_agents
 
         

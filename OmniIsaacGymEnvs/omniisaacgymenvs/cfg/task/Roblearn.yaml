@@ -11,6 +11,10 @@ env:
   resetDist: 3.0
   maxEffort: 400.0
 
+  agentsOffsetX: 0.0
+  agentsOffsetY: 1.0
+  agentsOffsetZ: 0.0
+
   clipObservations: 5.0
   clipActions: 1.0
   controlFrequencyInv: 2 # 60 Hz
