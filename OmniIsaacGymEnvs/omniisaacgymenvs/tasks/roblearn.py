@@ -43,6 +43,20 @@ class RoblearnTask(RLTask):
             self._agents_offset_y, 
             self._agents_offset_z
             ])
+
+        # Get the lidar parameters
+        self._lidar_min_range = self._task_cfg["lidar"]["min_range"]
+        self._lidar_max_range = self._task_cfg["lidar"]["max_range"]
+        self._lidar_draw_points = self._task_cfg["lidar"]["draw_points"]
+        self._lidar_draw_lines = self._task_cfg["lidar"]["draw_lines"]
+        self._lidar_horizontal_fov = self._task_cfg["lidar"]["horizontal_fov"]
+        self._lidar_vertical_fov = self._task_cfg["lidar"]["vertical_fov"]
+        self._lidar_horizontal_resolution = self._task_cfg["lidar"]["horizontal_resolution"]
+        self._lidar_vertical_resolution = self._task_cfg["lidar"]["vertical_resolution"]
+        self._lidar_rotation_rate = self._task_cfg["lidar"]["rotation_rate"]
+        self._lidar_high_lod = self._task_cfg["lidar"]["high_lod"]
+        self._lidar_yaw_offset = self._task_cfg["lidar"]["yaw_offset"]
+        self._lidar_enable_semantics = self._task_cfg["lidar"]["enable_semantics"]
         
         self._reset_dist = self._task_cfg["env"]["resetDist"]
         #self._max_push_effort = self._task_cfg["env"]["maxEffort"]
@@ -90,6 +104,7 @@ class RoblearnTask(RLTask):
         stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
         self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
         base_prim_path = "/World/envs"
+        #base_prim_path = "/envs"
         #omni.kit.commands.execute('DeletePhysicsSceneCommand',stage = stage, path='/PhysicsScene')
         #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
         
@@ -107,18 +122,18 @@ class RoblearnTask(RLTask):
                             "RangeSensorCreateLidar",
                             path=lidar_path,
                             parent=parent_prim,
-                            min_range=0.2,
-                            max_range=2.0,
-                            draw_points=False,
-                            draw_lines=True,
-                            horizontal_fov=270.0,
-                            vertical_fov=30.0,
-                            horizontal_resolution=0.4,
-                            vertical_resolution=4.0,
-                            rotation_rate=0.0,
-                            high_lod=False,
-                            yaw_offset=0.0,
-                            enable_semantics=False
+                            min_range=self._lidar_min_range,
+                            max_range=self._lidar_max_range,
+                            draw_points=self._lidar_draw_points,
+                            draw_lines=self._lidar_draw_lines,
+                            horizontal_fov=self._lidar_horizontal_fov,
+                            vertical_fov=self._lidar_vertical_fov,
+                            horizontal_resolution=self._lidar_horizontal_resolution,
+                            vertical_resolution=self._lidar_vertical_resolution,
+                            rotation_rate=self._lidar_rotation_rate,
+                            high_lod=self._lidar_high_lod,
+                            yaw_offset=self._lidar_yaw_offset,
+                            enable_semantics=self._lidar_enable_semantics
                         )
 
     def set_up_scene(self, scene) -> None:
@@ -130,6 +145,7 @@ class RoblearnTask(RLTask):
         self.create_lidars()
         super().set_up_scene(scene)
         self._jetbots = ArticulationView(prim_paths_expr="/World/envs/.*/Jetbot_*", name="jetbot_view")
+        #self._jetbots = ArticulationView(prim_paths_expr="/envs/.*/Jetbot_*", name="jetbot_view")
         scene.add(self._jetbots)
         #print("AticulationviewPoses:",self._jetbots.get_world_poses())
         #exit()
@@ -159,6 +175,22 @@ class RoblearnTask(RLTask):
         print("velocities.shape():",velocities.size(),"indices:",indices.size() )
 
         self._jetbots.set_joint_velocity_targets(velocities, indices=indices)
+
+
+    def get_lidar_data(self, env_index, agent_index):
+
+        base_prim_path = "/World/envs"
+        #base_prim_path = "/envs"
+        env_path = "/env_" + str(env_index)
+        jetbot_path = "/Jetbot_" + str(agent_index)
+        parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
+        lidar_path = parent_prim + "/LidarName"
+
+        pointcloud = self.lidarInterface.get_point_cloud_data(lidar_path)
+
+        print("Point Cloud", pointcloud)
+        print("Point Cloud Shape", pointcloud.size)
+    
  
     def get_observations(self) -> dict:
 
@@ -223,6 +255,8 @@ class RoblearnTask(RLTask):
         goal_world_position= 10
         current_jetbot_position, _ = self._jetbots.get_world_poses()
         #goal_world_position = self.obs_buf[:, 9]
+
+        self.get_lidar_data(0, 0)
 
         print("current_jetbot_pos : ", current_jetbot_pos_x,",",current_jetbot_pos_y)
         print("\n")
