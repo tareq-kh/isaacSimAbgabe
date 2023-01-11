@@ -63,7 +63,7 @@ class RoblearnTask(RLTask):
         self._max_episode_length = 500
 
         # Set number of observations per robot
-        self._num_observations = 16
+        self._num_observations = 16 + (int)(self._lidar_horizontal_fov / self._lidar_horizontal_resolution)
 
         # Set number of actions per environment
         self._num_actions = 2 * self._num_agents
@@ -103,8 +103,8 @@ class RoblearnTask(RLTask):
 
         stage = omni.usd.get_context().get_stage()                      # Used to access Geometry
         self.lidarInterface = _range_sensor.acquire_lidar_sensor_interface() # Used to interact with the LIDAR
-        base_prim_path = "/World/envs"
-        #base_prim_path = "/envs"
+        #base_prim_path = "/World/envs"
+        base_prim_path = "/envs"
         #omni.kit.commands.execute('DeletePhysicsSceneCommand',stage = stage, path='/PhysicsScene')
         #omni.kit.commands.execute('AddPhysicsSceneCommand',stage = stage, path='/World/PhysicsScene')
         
@@ -144,8 +144,8 @@ class RoblearnTask(RLTask):
         self.get_jetbot()
         self.create_lidars()
         super().set_up_scene(scene)
-        self._jetbots = ArticulationView(prim_paths_expr="/World/envs/.*/Jetbot_*", name="jetbot_view")
-        #self._jetbots = ArticulationView(prim_paths_expr="/envs/.*/Jetbot_*", name="jetbot_view")
+        #self._jetbots = ArticulationView(prim_paths_expr="/World/envs/.*/Jetbot_*", name="jetbot_view")
+        self._jetbots = ArticulationView(prim_paths_expr="/envs/.*/Jetbot_*", name="jetbot_view")
         scene.add(self._jetbots)
         #print("AticulationviewPoses:",self._jetbots.get_world_poses())
         #exit()
@@ -177,19 +177,47 @@ class RoblearnTask(RLTask):
         self._jetbots.set_joint_velocity_targets(velocities, indices=indices)
 
 
-    def get_lidar_data(self, env_index, agent_index):
+    def get_lidar_data(self):
+    
+        base_prim_path = "/envs"
+        distances_buf = torch.empty(self.num_envs * self.num_agents, (int)(self._lidar_horizontal_fov / self._lidar_horizontal_resolution))
+    
+        for i in range(self._num_envs):
 
-        base_prim_path = "/World/envs"
-        #base_prim_path = "/envs"
-        env_path = "/env_" + str(env_index)
-        jetbot_path = "/Jetbot_" + str(agent_index)
-        parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
-        lidar_path = parent_prim + "/LidarName"
+            env_path = "/env_" + str(i)
 
-        pointcloud = self.lidarInterface.get_point_cloud_data(lidar_path)
+            for j in range(self._num_agents):
 
-        print("Point Cloud", pointcloud)
-        print("Point Cloud Shape", pointcloud.size)
+                jetbot_path = "/Jetbot_" + str(j)
+                parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
+                #lidar_path = jetbot_path + "_lidar"
+                lidar_path = parent_prim + "/LidarName"
+                
+                distances = self.lidarInterface.get_linear_depth_data(lidar_path)
+                distances_torch = torch.from_numpy(distances)
+                distances_flat = torch.flatten(distances_torch)
+                distances_scaled = (distances_flat - self._lidar_min_range) / (self._lidar_max_range - self._lidar_min_range)
+                
+                agent_index = i * self.num_agents + j
+                distances_buf[agent_index:] = distances_scaled
+    
+        #base_prim_path = "/World/envs"
+        #env_path = "/env_" + str(env_index)
+        #jetbot_path = "/Jetbot_" + str(agent_index)
+        #parent_prim = base_prim_path + env_path + jetbot_path + "/chassis"
+        #lidar_path = parent_prim + "/LidarName"
+
+        #pointcloud = self.lidarInterface.get_point_cloud_data(lidar_path)
+        
+        print("fgjfjfund", distances_scaled.size())
+        
+
+        #print("Point Cloud", pointcloud)
+        print("Distances", distances_scaled)
+        #print("Point Cloud Shape", distances_scaled.size)
+        
+        #self.lidar_buf[:] = distances_scaled
+        return distances_buf
     
  
     def get_observations(self) -> dict:
@@ -201,17 +229,25 @@ class RoblearnTask(RLTask):
         #jetbot_velocity = self._jetbots.get_velocities()
         jetbot_linear_velocity = self._jetbots.get_linear_velocities()
         jetbot_angular_velocity = self._jetbots.get_angular_velocities()
+        print("Linear vel shape", jetbot_linear_velocity.size())
+        print("Linear angular shape", jetbot_angular_velocity.size())
+        jetbot_lidar = self.get_lidar_data()
+        print("Lidar data", jetbot_lidar)
+        print("Lidar shape", jetbot_lidar.size())
         #print("Lvelocity: "+str(jetbot_linear_velocity))
         #print("Avelocity: "+str(jetbot_angular_velocity))
         #print("velocity: "+str(jetbot_velocity))
         #print("Orienv: "+str(jetbot_velocity[:,2:]))
+        
+        print("Positions x", jetbot_world_position[:, 0])
+        print("Positions y", jetbot_world_position[:, 1])
 
         #goal_world_position, _ = self.goal.get_world_poses()
         #print("goal_world_position: "+str(goal_world_position))
-        print("self.obs_buf.size()",self.obs_buf.size(),"jetbot_world_position",jetbot_world_position.size())
-        self.obs_buf[:, 0] = jetbot_world_position[:, 0]
-        self.obs_buf[:, 1] = jetbot_world_position[:, 1]
-        self.obs_buf[:, 2] = jetbot_world_position[:, 2]
+        print("self.obs_buf.size()",self.obs_buf.size(),"jetbot_world_position", jetbot_world_position.size())
+        self.obs_buf[:, 0] = jetbot_world_position[:, 0]    # X
+        self.obs_buf[:, 1] = jetbot_world_position[:, 1]    # Y
+        self.obs_buf[:, 2] = jetbot_world_position[:, 2]    # Z
         self.obs_buf[:, 3] = jetbot_world_orientation[:, 0]
         self.obs_buf[:, 4] = jetbot_world_orientation[:, 1]
         self.obs_buf[:, 5] = jetbot_world_orientation[:, 2]
@@ -225,6 +261,10 @@ class RoblearnTask(RLTask):
         #self.obs_buf[:, 13] = goal_world_position[:, 0]
         #self.obs_buf[:, 14] = goal_world_position[:, 1]
         #self.obs_buf[:, 15] = goal_world_position[:, 2]
+ 
+        self.obs_buf[:, 16:] = jetbot_lidar
+        
+        print("Observations", self.obs_buf)
 
         observations = {
             self._jetbots.name: {
@@ -256,7 +296,7 @@ class RoblearnTask(RLTask):
         current_jetbot_position, _ = self._jetbots.get_world_poses()
         #goal_world_position = self.obs_buf[:, 9]
 
-        self.get_lidar_data(0, 0)
+        #self.get_lidar_data(0, 0)
 
         print("current_jetbot_pos : ", current_jetbot_pos_x,",",current_jetbot_pos_y)
         print("\n")
