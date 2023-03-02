@@ -131,7 +131,7 @@ class RLTaskSingle(BaseTask):
             self.collision_filter_global_paths.append(self._ground_plane_path)
             scene.add_default_ground_plane(prim_path=self._ground_plane_path)
         self.prim_paths = self._cloner.generate_paths("/World/envs/env", self._num_envs)
-        self._env_pos = self._cloner.clone(source_prim_path="/World/envs/env_0", prim_paths=self.prim_paths, replicate_physics=replicate_physics)
+        self._env_pos = self._cloner.clone(source_prim_path="/World/envs/env_0", prim_paths=self.prim_paths, replicate_physics=False)
         self._env_pos = torch.tensor(np.array(self._env_pos), device=self._device, dtype=torch.float)
         self._cloner.filter_collisions(
             self._env._world.get_physics_context().prim_path, "/World/collisions", self.prim_paths, self.collision_filter_global_paths)

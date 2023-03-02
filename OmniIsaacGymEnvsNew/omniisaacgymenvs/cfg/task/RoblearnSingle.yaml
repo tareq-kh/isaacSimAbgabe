@@ -7,8 +7,8 @@ physics_engine: ${..physics_engine}
 env:
   numEnvs: ${resolve_default:2,${...num_envs}}
   numAgents: 3
-  envSpacing: 4.0
-  resetDist: 3.0
+  envSpacing: 10.0
+  resetDist: 0.2
   maxEffort: 400.0
 
   agentsOffsetX: 0.0
@@ -23,10 +23,10 @@ lidar:
     min_range: 0.1
     max_range: 5.0
     draw_points: True
-    draw_lines: False
-    horizontal_fov: 270.0
+    draw_lines: True
+    horizontal_fov: 180.0
     vertical_fov: 0.0
-    horizontal_resolution: 0.4
+    horizontal_resolution: 2.0
     vertical_resolution: 0.0
     rotation_rate: 0.0
     high_lod: False
@@ -40,7 +40,7 @@ sim:
   add_ground_plane: True
   add_distant_light: True
   use_flatcache: True
-  enable_scene_query_support: False
+  enable_scene_query_support: True
 
   default_physics_material:
     static_friction: 1.0
